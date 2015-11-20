@@ -8,7 +8,7 @@
 #include "as.h"
 
 const int infinite = 0x7FFFFFFF;
-const int dist_coeff = 10;
+const int dist_coeff = 20;
 
 int findPathA(cell start,cell end,path& best_path,tilemap& t_map, double (*h)(cell x,cell y) )
 {
@@ -19,72 +19,50 @@ int findPathA(cell start,cell end,path& best_path,tilemap& t_map, double (*h)(ce
 	
 	width = t_map[0].size();
 	height = t_map.size();
-	
-	std::cout << "height :"<<height<<std::endl;
-	std::cout << "width :"<<width<<std::endl;
 
 	costmap G(height,std::vector<double>(width, infinite));
 	costmap F(height,std::vector<double>(width, infinite));
 
-	G[start.first][start.second] = 0;
-	F[start.first][start.second] = G[start.first][start.second] + dist_coeff*h(start,end);
+	G[start.second][start.first] = 0;
+	F[start.second][start.first] = G[start.second][start.first] + dist_coeff*h(start,end);
 
 	std::set<cell > wawe;
 	std::set<cell > closed;
 	std::map<cell,cell > from;
 	std::set<cell > unclosedNeighbours; 
 	
+	from[start] = start;
 	wawe.insert(start);
 
 	while(!wawe.empty())
 	{
 		current = findMinF(wawe,F);
-		std::cout << "current : "<< current.first << " " << current.second << std::endl;
 		if(current == end){is_ok = 1;break;}
+
 		wawe.erase(current);
 		closed.insert(current);
 		getUnclosedNeighbours(current,t_map,closed,unclosedNeighbours);
 		for(auto it = unclosedNeighbours.begin();it != unclosedNeighbours.end();it++)
 		{
-			double temp_G = G[current.first][current.second] + transition_cost(from[current],current,*it);
-			if(wawe.count(*it) == 0 || temp_G < G[it->first][it->second])
+			double temp_G = G[current.second][current.first] + transition_cost(from[current],current,*it);
+			if(wawe.count(*it) == 0 || temp_G < G[it->second][it->first])
 			{
 				from[*it] = current;
-				G[it->first][it->second] = temp_G;
-				F[it->first][it->second] = G[it->first][it->second] + dist_coeff*h(*it,end);
-				if(wawe.count(*it) == 0) wawe.insert(*it);
+				G[it->second][it->first] = temp_G;
+				F[it->second][it->first] = G[it->second][it->first] + dist_coeff*h(*it,end);
+				wawe.insert(*it);
 			}
-			std::cout << "wawe :"<< std::endl;
-			for(auto it = wawe.begin();it != wawe.end();it++)
-				std::cout << it->first << " " << it->second << std::endl;
-			std::cout << std::endl;
 		}
 	}
-	std::cout <<"F: "<< std::endl;
-	for(int i = 0;i < height;i++)
-	{
-		for(int j = 0;j < width;j++)
-			std::cout << F[i][j] << " ";
-		std::cout << std::endl;
-	}
-	std::cout << std::endl;
-
-	std::cout <<"G: "<< std::endl;
-	for(int i = 0;i < height;i++)
-	{
-		for(int j = 0;j < width;j++)
-			std::cout << G[i][j] << " ";
-		std::cout << std::endl;
-	}
-	std::cout << std::endl;
 
 	if(!is_ok) return -1;
 	
 	best_path.clear();
-
+	best_path.push_back(end);
+	
 	while(current != start)
 	{
-		best_path.push_back(from[current]);
+		best_path.push_back(from[current]); 
 		current = from[current];
 	}
 
@@ -126,10 +104,10 @@ cell findMinF(std::set<cell >& wawe, costmap& F)
 
 	for(auto it = wawe.begin();it != wawe.end();it++)
 	{
-		if(min > F[it->first][it->second])
+		if(min > F[it->second][it->first])
 		{
 			ans = *it;
-			min = F[it->first][it->second];
+			min = F[it->second][it->first];
 		}
 	}
 	return ans;
@@ -146,97 +124,82 @@ void getUnclosedNeighbours(cell current,tilemap& t_map,std::set<cell >& closed,s
 	width  = t_map[0].size();
 	neighbours.clear();
 	
-	switch(t_map[x][y])
+	switch(t_map[y][x])
 	{
 		case model::VERTICAL:{
-			neighbours.insert(cell(x,y+1));
 			neighbours.insert(cell(x,y-1));
-			std::cout << "VERTICAL "  << std::endl;
+			neighbours.insert(cell(x,y+1));
 			break;
 		}
 		case model::HORIZONTAL:{
 			neighbours.insert(cell(x+1,y));
 			neighbours.insert(cell(x-1,y));
-			std::cout << "HORIZONTAL" << std::endl;
 			break;
 		}
 		case model::LEFT_TOP_CORNER:{
-			neighbours.insert(cell(x,y-1));
+			neighbours.insert(cell(x,y+1));
 			neighbours.insert(cell(x+1,y));
-			std::cout << "LEFT_TOP_CORNER" << std::endl;
 			break;
 		}
 		case model::RIGHT_TOP_CORNER:{
 			neighbours.insert(cell(x-1,y));
-			neighbours.insert(cell(x,y-1));
-			std::cout << "RIGHT_TOP_CORNER" << std::endl;
+			neighbours.insert(cell(x,y+1));
 			break;
 		}
 		case model::LEFT_BOTTOM_CORNER:{
-			neighbours.insert(cell(x,y+1));
+			neighbours.insert(cell(x,y-1));
 			neighbours.insert(cell(x+1,y));
-			std::cout << "LEFT_BOTTOM_CORNER" << std::endl;
 			break;
 		}
 		case model::RIGHT_BOTTOM_CORNER:{
-			neighbours.insert(cell(x,y+1));
+			neighbours.insert(cell(x,y-1));
 			neighbours.insert(cell(x-1,y));
-			std::cout << "RIGHT_BOTTOM_CORNER" << std::endl;
 			break;
 		}
 		case model::LEFT_HEADED_T:{
-			neighbours.insert(cell(x,y+1));
 			neighbours.insert(cell(x,y-1));
+			neighbours.insert(cell(x,y+1));
 			neighbours.insert(cell(x-1,y));
-			std::cout << "LEFT_HEADED_T" << std::endl;
 			break;
 		}
 		case model::RIGHT_HEADED_T:{
-			neighbours.insert(cell(x,y+1));
 			neighbours.insert(cell(x,y-1));
+			neighbours.insert(cell(x,y+1));
 			neighbours.insert(cell(x+1,y));
-			std::cout << "RIGHT_HEADED_T"<< std::endl;
 			break;
 		}
 		case model::TOP_HEADED_T:{
-			neighbours.insert(cell(x,y+1));
+			neighbours.insert(cell(x,y-1));
 			neighbours.insert(cell(x+1,y));
 			neighbours.insert(cell(x-1,y));
-			std::cout << "TOP_HEADED_T" << std::endl;
 			break;
 		}
 		case model::BOTTOM_HEADED_T:{
-			neighbours.insert(cell(x,y-1));
+			neighbours.insert(cell(x,y+1));
 			neighbours.insert(cell(x+1,y));
 			neighbours.insert(cell(x-1,y));
-			std::cout << "BOTTOM_HEADED_T" << std::endl;
 			break;
 		}	
 		case model::CROSSROADS:{
-			neighbours.insert(cell(x,y+1));
 			neighbours.insert(cell(x,y-1));
+			neighbours.insert(cell(x,y+1));
 			neighbours.insert(cell(x+1,y));
 			neighbours.insert(cell(x-1,y));
-			std::cout << "CROSSROADS" << std::endl;
 			break;
 		}	
 		default:{
-			std::cout << "DEFAULT" << std::endl;
 			break;
 		}	
 	}
+
 	for(auto it = neighbours.begin();it != neighbours.end();it++)
 	{
-		if( it->first > width || it->first < 0){neighbours.erase(*it); std::cout << it->first << " "<< it->second << " " << "x coordinate out of range!" <<std::endl;}
-		if( it->second > height || it->second < 0){neighbours.erase(*it); std::cout << it->first << " "<< it->second << " " << "y coordinate out of range!" <<std::endl;}
-		if(t_map[it->first][it->second] == model::_UNKNOWN_TILE_TYPE_){neighbours.erase(*it);std::cout << "Unknown tile type" << std::endl;}
-		if(t_map[it->first][it->second] == model::EMPTY)neighbours.erase(*it);{std::cout << "Empty tile"<<std::endl;}
+		if( it->first >= width || it->first < 0){ neighbours.erase(*it);continue; }
+		if( it->second >= height || it->second < 0){ neighbours.erase(*it);continue; }
+		if(t_map[it->second][it->first] == model::_UNKNOWN_TILE_TYPE_){ neighbours.erase(*it); }
+		if(t_map[it->second][it->first] == model::EMPTY){ neighbours.erase(*it); }
+		if(closed.count(*it) > 0){ neighbours.erase(*it); }
 	}
-	std::cout << "unclosed neighbours: "<< std::endl;
-	for(auto it = neighbours.begin();it != neighbours.end();it++)
-	{
-		std::cout << it->first << " " << it->second << std::endl;
-	}
-	std::cout << std::endl;
+
 	return;
 }
